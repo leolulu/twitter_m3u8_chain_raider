@@ -9,6 +9,7 @@ from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util
 
 class TwitterReider:
     def __init__(self, init_url) -> None:
+        self.if_cookie_loaded = False
         self.init_url = init_url
         self.init_driver()
 
@@ -25,7 +26,8 @@ class TwitterReider:
             }
         }
         self.driver = Chrome(seleniumwire_options=options)
-        self.driver.get(self.init_url)
+
+    def load_cookie(self):
         with open('cookies.txt', 'r', encoding='utf-8') as f:
             cookies = json.loads(f.read())
         for cookie in cookies:
@@ -33,11 +35,15 @@ class TwitterReider:
                 cookie['sameSite'] = 'Strict'
             self.driver.add_cookie(cookie)
         self.driver.refresh()
+        self.if_cookie_loaded = True
 
     def raid_single_user(self, user_page_url):
         self.driver.requests.clear()
         parsed_url_set = set()
         self.driver.get(user_page_url)
+        if not self.if_cookie_loaded:
+            print("没有载入cookie，开始载入cookie...")
+            self.load_cookie()
         sleep(5)
 
         SCROLL_PAUSE_TIME = 1.0
@@ -71,6 +77,6 @@ class TwitterReider:
 
 if __name__ == "__main__":
     # init_url = 'https://twitter.com/stone62855987'
-    init_url = 'https://twitter.com/8787yx'
+    init_url = 'https://twitter.com/zzh1329825121'
     t = TwitterReider(init_url)
     t.raid_single_user(init_url)
