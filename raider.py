@@ -4,7 +4,7 @@ from time import sleep
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
 
 from constants import Constant
-from utils import MongoUtil, M3u8Util
+from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util
 
 
 class TwitterReider:
@@ -34,8 +34,8 @@ class TwitterReider:
             self.driver.add_cookie(cookie)
         self.driver.refresh()
 
-    def scroll_user_page(self, user_page_url):
-        del self.driver.requests
+    def raid_single_user(self, user_page_url):
+        self.driver.requests.clear()
         parsed_url_set = set()
         self.driver.get(user_page_url)
         sleep(5)
@@ -54,20 +54,23 @@ class TwitterReider:
                 break
             last_height = new_height
             for request in self.driver.requests:
-                url = M3u8Util.parse_url(request.url)
+                m3u8 = M3u8Util(request.url)
                 if (
                     request.response
-                    and 'm3u8' in url
-                    and url not in parsed_url_set
+                    and 'm3u8' in m3u8.url
+                    and m3u8.url not in parsed_url_set
                 ):
-                    parsed_url_set.add(url)
-                    if MongoUtil.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: url}) == 0:
-                        print(url, request.response.status_code, request.response.headers['Content-Type'])
-
+                    parsed_url_set.add(m3u8.url)
+                    if MongoUtil.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: m3u8.url}) == 0:
+                        FFmpegUtil.ffmpeg_process_m3u8(
+                            m3u8.url,
+                            CommonUtil.get_user_name(user_page_url) + '_' + m3u8.name
+                        )
         print("已经滚动到底部了...")
 
 
 if __name__ == "__main__":
-    init_url = 'https://twitter.com/stone62855987'
+    # init_url = 'https://twitter.com/stone62855987'
+    init_url = 'https://twitter.com/8787yx'
     t = TwitterReider(init_url)
-    t.scroll_user_page(init_url)
+    t.raid_single_user(init_url)
