@@ -1,8 +1,7 @@
-# from seleniumwire import webdriver
-from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
-from time import sleep
 import json
+from time import sleep
 
+from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
 
 options = {
     'proxy': {
