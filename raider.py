@@ -8,8 +8,9 @@ from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util
 
 
 class TwitterReider:
-    def __init__(self, init_url) -> None:
+    def __init__(self, init_url, high_res=False) -> None:
         self.if_cookie_loaded = False
+        self.high_res = high_res
         self.init_url = init_url
         self.init_driver()
 
@@ -78,5 +79,5 @@ class TwitterReider:
 if __name__ == "__main__":
     # init_url = 'https://twitter.com/stone62855987'
     init_url = 'https://twitter.com/zzh1329825121'
-    t = TwitterReider(init_url)
+    t = TwitterReider(init_url,high_res=True)
     t.raid_single_user(init_url)
