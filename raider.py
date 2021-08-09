@@ -9,6 +9,8 @@ from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util
 
 class TwitterReider:
     def __init__(self, init_url) -> None:
+        self.user_urls_to_parse = set()
+        self.user_urls_parsed = set()
         self.if_cookie_loaded = False
         self.init_url = init_url
         self.init_driver()
@@ -72,7 +74,18 @@ class TwitterReider:
                             m3u8.url,
                             CommonUtil.get_user_name(user_page_url) + '_' + m3u8.name
                         )
-        print("已经滚动到底部了...")
+        print("已经滚动到底部了，开始获取关注列表")
+
+    def get_following(self, user_page_url):
+        self.driver.get(CommonUtil.get_following_url(user_page_url))
+
+    def url_dispatcher(self):
+        while self.user_urls_to_parse:
+            url = self.user_urls_to_parse.pop()
+            if url in self.user_urls_parsed:
+                continue
+            self.raid_single_user(url)
+            self.user_urls_parsed.add(url)
 
 
 if __name__ == "__main__":

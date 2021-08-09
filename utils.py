@@ -60,3 +60,12 @@ class CommonUtil:
         if url[-1] == '/':
             url = url[:-1]
         return url.split('/')[-1]
+
+    @classmethod
+    def get_following_url(cls, url):
+        if url[-1] == '/':
+            url = url[:-1]
+        return url + '/following'
+
+class DriverUtil:
+    pass
