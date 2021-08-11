@@ -4,21 +4,27 @@ from time import sleep
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
 
 from constants import Constant
-from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util
+from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util, RedisUtil, load_config
 
 
 class TwitterReider:
     def __init__(self, init_url, high_res=False) -> None:
+        self.conf = load_config("config.yaml")
         self.user_urls_to_parse = set()
         self.user_urls_parsed = set()
         self.if_cookie_loaded = False
         self.high_res = high_res
         self.init_url = init_url
+        self.redis_client = RedisUtil(self.conf['redis']['host'], self.conf['redis']['password'])
+        self.init_utils()
         self.init_driver()
 
     def __del__(self):
         self.driver.close()
         self.driver.quit()
+
+    def init_utils(self):
+        MongoUtil.DB_ADDRESS = self.conf['mongo']['db_addr']
 
     def init_driver(self):
         options = {
@@ -72,13 +78,9 @@ class TwitterReider:
                     parsed_url_set.add(m3u8.url)
                     if MongoUtil.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: m3u8.url}) == 0:
                         if (self.high_res and Constant.TAG_SIG in request.url) or ((not self.high_res) and (Constant.TAG_SIG not in request.url)):
-                            #下载，并且阻塞，所以下载完了以后，才会添加，最好是把redis加在这里，然后下载从redis里面取
+                            # 下载，并且阻塞，所以下载完了以后，才会添加，最好是把redis加在这里，然后下载从redis里面取
                             pass
                         MongoUtil.get_collection(Constant.PARSED_M3U8_URL).insert_one({Constant.URL: m3u8.url})
-
-
-
-
 
                         FFmpegUtil.ffmpeg_process_m3u8(
                             m3u8.url,
@@ -101,5 +103,5 @@ class TwitterReider:
 if __name__ == "__main__":
     # init_url = 'https://twitter.com/stone62855987'
     init_url = 'https://twitter.com/zzh1329825121'
-    t = TwitterReider(init_url,high_res=True)
+    t = TwitterReider(init_url, high_res=True)
     t.raid_single_user(init_url)

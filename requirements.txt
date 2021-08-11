@@ -1,3 +1,5 @@
 undetected-chromedriver
 selenium-wire
 pymongo
+redis
+ruamel.yaml

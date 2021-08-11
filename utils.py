@@ -5,11 +5,12 @@ from urllib.parse import urlparse
 
 import pymongo
 import redis
+from ruamel.yaml import YAML
 
 
 class MongoUtil:
     DB_COL_MAPPING = {}
-    DB_ADDRESS = "mongodb://42.193.43.79:27017/"
+    DB_ADDRESS = None
 
     @classmethod
     def get_collection(cls, db_name, collection_name='data'):
@@ -25,19 +26,36 @@ class MongoUtil:
 
 
 class RedisUtil:
-    CONN = None
+    def __init__(self, host, password):
+        pool = redis.ConnectionPool(
+            host=host,
+            port=6379,
+            decode_responses=True,
+            max_connections=10,
+            password=password)
+        self.client = redis.StrictRedis(connection_pool=pool)
 
-    def get_conn(cls):
-        if not RedisUtil.CONN:
-            pool = redis.ConnectionPool(
-                host='42.193.43.79',
-                port=6379,
-                decode_responses=True,
-                max_connections=10,
-                password='PCEJSfVVHyiZYqS6ZRB9lFDPeTvOaZ')
-            r = redis.StrictRedis(connection_pool=pool)
+    def get_inner_key(self, key):
+        lkey = 'l_' + key
+        skey = 's_' + key
+        return lkey, skey
 
-        return RedisUtil.CONN
+    def non_rep_add(self, key, value):
+        lkey, skey = self.get_inner_key(key)
+        if self.client.sismember(skey, value):
+            return False
+        else:
+            self.client.sadd(skey, value)
+            self.client.rpush(lkey, value)
+            return True
+
+    def get_one_from_list(self, key):
+        lkey, skey = self.get_inner_key(key)
+        value = self.client.blpop(lkey, 1)  # TODO:remove timeout
+        if value:
+            value = value[1]
+            self.client.srem(skey, value)
+            return value
 
 
 class M3u8Util:
@@ -87,3 +105,10 @@ class CommonUtil:
 
 class DriverUtil:
     pass
+
+
+def load_config(config_path):
+    yaml = YAML(typ='safe')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        conf = yaml.load(f)
+    return conf
