@@ -1,9 +1,10 @@
 import os
-from urllib.parse import urlparse
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 import pymongo
+import redis
 
 
 class MongoUtil:
@@ -21,6 +22,22 @@ class MongoUtil:
             mycol = mydb[collection_name]
             MongoUtil.DB_COL_MAPPING.update({db_name: mycol})
             return mycol
+
+
+class RedisUtil:
+    CONN = None
+
+    def get_conn(cls):
+        if not RedisUtil.CONN:
+            pool = redis.ConnectionPool(
+                host='42.193.43.79',
+                port=6379,
+                decode_responses=True,
+                max_connections=10,
+                password='PCEJSfVVHyiZYqS6ZRB9lFDPeTvOaZ')
+            r = redis.StrictRedis(connection_pool=pool)
+
+        return RedisUtil.CONN
 
 
 class M3u8Util:
@@ -66,6 +83,7 @@ class CommonUtil:
         if url[-1] == '/':
             url = url[:-1]
         return url + '/following'
+
 
 class DriverUtil:
     pass

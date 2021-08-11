@@ -71,6 +71,15 @@ class TwitterReider:
                 ):
                     parsed_url_set.add(m3u8.url)
                     if MongoUtil.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: m3u8.url}) == 0:
+                        if (self.high_res and Constant.TAG_SIG in request.url) or ((not self.high_res) and (Constant.TAG_SIG not in request.url)):
+                            #下载，并且阻塞，所以下载完了以后，才会添加，最好是把redis加在这里，然后下载从redis里面取
+                            pass
+                        MongoUtil.get_collection(Constant.PARSED_M3U8_URL).insert_one({Constant.URL: m3u8.url})
+
+
+
+
+
                         FFmpegUtil.ffmpeg_process_m3u8(
                             m3u8.url,
                             CommonUtil.get_user_name(user_page_url) + '_' + m3u8.name
