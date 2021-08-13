@@ -61,6 +61,9 @@ class RedisUtil:
             return False
         else:
             self.client.rpush(lkey, url)
+            # 调试用
+            print('hkey加入', url, value)
+            ########
             self.client.hset(hkey, url, value)
             return True
 

@@ -1,4 +1,5 @@
 import json
+import random
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
@@ -134,7 +135,8 @@ class TwitterReider:
 
     def chief_dispatcher(self):
         while self.user_urls_to_parse:
-            url = self.user_urls_to_parse.pop()
+            url = random.sample(self.user_urls_to_parse,1)[0]
+            self.user_urls_to_parse.remove(url)
             if url in self.user_urls_parsed:
                 continue
             self.raid_single_user(url)
