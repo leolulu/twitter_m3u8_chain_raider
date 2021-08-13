@@ -99,7 +99,7 @@ class FFmpegUtil:
             os.mkdir(FFmpegUtil.DOWNLOAD_FOLDER)
         command = FFmpegUtil.COMMAND_TEMPLATE.format(url, os.path.join(FFmpegUtil.DOWNLOAD_FOLDER, f'{name}.mp4'))
         print("开始下载：", name, "\n指令为：", command)
-        subprocess.call(command, shell=True)
+        subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print("下载完成：", name)
 
 
