@@ -44,8 +44,10 @@ class TwitterReider:
         self.if_cookie_loaded = False
         # init downloader
         if self.do_download:
-            executor = ThreadPoolExecutor(2)
-            executor.submit(self.download_m3u8_loop_single)
+            worker_num = 2
+            executor = ThreadPoolExecutor(worker_num)
+            for _ in range(worker_num):
+                executor.submit(self.download_m3u8_loop_single)
             print('下载器已初始化...')
 
     def load_cookie(self):
