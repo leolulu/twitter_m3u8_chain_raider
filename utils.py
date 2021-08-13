@@ -60,16 +60,13 @@ class RedisUtil:
         if self.client.hexists(hkey, url):
             return False
         else:
-            self.client.rpush(lkey, url)
-            # 调试用
-            print('hkey加入', url, value)
-            ########
             self.client.hset(hkey, url, value)
+            self.client.rpush(lkey, url)
             return True
 
     def get_one_from_list(self, key):
         lkey, hkey = self.get_inner_key(key)
-        url_info = self.client.blpop(lkey, 0)  # TODO:remove timeout
+        url_info = self.client.blpop(lkey, 0)
         url = url_info[1]
         value = self.client.hget(hkey, url)
         self.client.hdel(hkey, url)
@@ -99,8 +96,8 @@ class FFmpegUtil:
             os.mkdir(FFmpegUtil.DOWNLOAD_FOLDER)
         command = FFmpegUtil.COMMAND_TEMPLATE.format(url, os.path.join(FFmpegUtil.DOWNLOAD_FOLDER, f'{name}.mp4'))
         print("开始下载：", name, "\n指令为：", command)
-        subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print("下载完成：", name)
+        exit_code = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"下载完成，状态码[{exit_code}]:", name)
 
 
 class CommonUtil:
