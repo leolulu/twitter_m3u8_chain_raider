@@ -37,25 +37,25 @@ class RedisUtil:
 
     def get_inner_key(self, key):
         lkey = 'l_' + key
-        skey = 's_' + key
-        return lkey, skey
+        hkey = 'h_' + key
+        return lkey, hkey
 
-    def non_rep_add(self, key, value):
-        lkey, skey = self.get_inner_key(key)
-        if self.client.sismember(skey, value):
+    def non_rep_add(self, key, url, value):
+        lkey, hkey = self.get_inner_key(key)
+        if self.client.hexists(hkey, url):
             return False
         else:
-            self.client.sadd(skey, value)
-            self.client.rpush(lkey, value)
+            self.client.rpush(lkey, url)
+            self.client.hset(hkey, url, value)
             return True
 
     def get_one_from_list(self, key):
-        lkey, skey = self.get_inner_key(key)
-        value = self.client.blpop(lkey, 1)  # TODO:remove timeout
-        if value:
-            value = value[1]
-            self.client.srem(skey, value)
-            return value
+        lkey, hkey = self.get_inner_key(key)
+        url_info = self.client.blpop(lkey, 0)  # TODO:remove timeout
+        url = url_info[1]
+        value = self.client.hget(hkey, url)
+        self.client.hdel(hkey, url)
+        return url, value
 
 
 class M3u8Util:
@@ -74,19 +74,15 @@ class M3u8Util:
 class FFmpegUtil:
     COMMAND_TEMPLATE = 'ffmpeg -http_proxy http://127.0.0.1:10809/ -i "{}" -c copy -y "{}"'
     DOWNLOAD_FOLDER = './download'
-    EXECUTOR = ThreadPoolExecutor(2)
 
     @classmethod
     def ffmpeg_process_m3u8(cls, url, name):
-        def do_process(command, name):
-            print("开始下载：", name, "\n指令为：", command)
-            subprocess.call(command, shell=True)
-            print("下载完成：", name)
-
         if not os.path.exists(FFmpegUtil.DOWNLOAD_FOLDER):
             os.mkdir(FFmpegUtil.DOWNLOAD_FOLDER)
         command = FFmpegUtil.COMMAND_TEMPLATE.format(url, os.path.join(FFmpegUtil.DOWNLOAD_FOLDER, f'{name}.mp4'))
-        FFmpegUtil.EXECUTOR.submit(do_process, command, name)
+        print("开始下载：", name, "\n指令为：", command)
+        subprocess.call(command, shell=True)
+        print("下载完成：", name)
 
 
 class CommonUtil:
