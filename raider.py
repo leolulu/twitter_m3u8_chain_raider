@@ -21,7 +21,7 @@ class TwitterReider:
         # load config
         self.conf = load_config("config.yaml")
         # init utils
-        MongoUtil.DB_ADDRESS = self.conf['mongo']['db_addr']
+        self.mongo_client = MongoUtil(self.conf['mongo']['db_addr'])
         self.redis_client = RedisUtil(self.conf['redis']['host'], self.conf['redis']['password'])
         # init driver
         options = {
@@ -77,11 +77,10 @@ class TwitterReider:
                     and m3u8.url not in parsed_url_set
                 ):
                     parsed_url_set.add(m3u8.url)
-                    if MongoUtil.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: m3u8.url}) == 0:
+                    if self.mongo_client.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: m3u8.url}) == 0:
                         if (self.high_res and Constant.TAG_SIG in request.url) or ((not self.high_res) and (Constant.TAG_SIG not in request.url)):
-                            # 下载，并且阻塞，所以下载完了以后，才会添加，最好是把redis加在这里，然后下载从redis里面取
                             self.redis_client.non_rep_add(Constant.VIDEO_URL_KEY, m3u8.url)
-                        MongoUtil.get_collection(Constant.PARSED_M3U8_URL).insert_one({Constant.URL: m3u8.url})
+                        self.mongo_client.get_collection(Constant.PARSED_M3U8_URL).insert_one({Constant.URL: m3u8.url})
 
                         FFmpegUtil.ffmpeg_process_m3u8(
                             m3u8.url,

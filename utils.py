@@ -5,24 +5,39 @@ from urllib.parse import urlparse
 
 import pymongo
 import redis
+from retrying import retry
 from ruamel.yaml import YAML
 
 
 class MongoUtil:
     DB_COL_MAPPING = {}
-    DB_ADDRESS = None
 
-    @classmethod
-    def get_collection(cls, db_name, collection_name='data'):
-        myclient = pymongo.MongoClient(MongoUtil.DB_ADDRESS)
+    def __init__(self, db_addr):
+        self.client = pymongo.MongoClient(db_addr)
+
+    def get_collection(self, db_name, collection_name='data'):
         mycol = MongoUtil.DB_COL_MAPPING.get(db_name)
         if mycol:
             return mycol
         else:
-            mydb = myclient[db_name]
+            mydb = self.client[db_name]
             mycol = mydb[collection_name]
-            MongoUtil.DB_COL_MAPPING.update({db_name: mycol})
-            return mycol
+            mycol_inst = MongoColUtil(mycol)
+            MongoUtil.DB_COL_MAPPING.update({db_name: mycol_inst})
+            return mycol_inst
+
+
+class MongoColUtil:
+    def __init__(self, col):
+        self.col = col
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
+    def count_documents(self, *args, **kwargs):
+        return self.col.count_documents(*args, **kwargs)
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
+    def insert_one(self, *args, **kwargs):
+        return self.col.insert_one(*args, **kwargs)
 
 
 class RedisUtil:

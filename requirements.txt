@@ -3,3 +3,4 @@ selenium-wire
 pymongo
 redis
 ruamel.yaml
+retrying
