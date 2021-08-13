@@ -1,16 +1,18 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
 
 from constants import Constant
-from utils import CommonUtil, FFmpegUtil, MongoUtil, M3u8Util, RedisUtil, load_config
+from utils import CommonUtil, FFmpegUtil, M3u8Util, MongoUtil, RedisUtil, load_config
 
 
 class TwitterReider:
-    def __init__(self, init_url, high_res=False) -> None:
+    def __init__(self, init_url, high_res=False, do_download=True) -> None:
         self.high_res = high_res
         self.init_url = init_url
+        self.do_download = do_download
         self.prepare()
 
     def __del__(self):
@@ -20,9 +22,12 @@ class TwitterReider:
     def prepare(self):
         # load config
         self.conf = load_config("config.yaml")
+        print('配置已读取...')
         # init utils
         self.mongo_client = MongoUtil(self.conf['mongo']['db_addr'])
+        print('mongo已连接...')
         self.redis_client = RedisUtil(self.conf['redis']['host'], self.conf['redis']['password'])
+        print('redis已连接...')
         # init driver
         options = {
             'proxy': {
@@ -32,10 +37,18 @@ class TwitterReider:
             }
         }
         self.driver = Chrome(seleniumwire_options=options)
+        print('selenium driver已初始化...')
         # init variables
-        self.user_urls_to_parse = set()
+        self.user_urls_to_parse = set([self.init_url])
         self.user_urls_parsed = set()
         self.if_cookie_loaded = False
+        # init downloader
+        if self.do_download:
+            worker_num = 2
+            executor = ThreadPoolExecutor(worker_num)
+            for _ in range(worker_num):
+                executor.submit(self.download_m3u8_loop_single)
+            print('下载器已初始化...')
 
     def load_cookie(self):
         if not self.if_cookie_loaded:
@@ -79,14 +92,20 @@ class TwitterReider:
                     parsed_url_set.add(m3u8.url)
                     if self.mongo_client.get_collection(Constant.PARSED_M3U8_URL).count_documents({Constant.URL: m3u8.url}) == 0:
                         if (self.high_res and Constant.TAG_SIG in request.url) or ((not self.high_res) and (Constant.TAG_SIG not in request.url)):
-                            self.redis_client.non_rep_add(Constant.VIDEO_URL_KEY, m3u8.url)
+                            self.redis_client.non_rep_add(
+                                Constant.VIDEO_URL_TO_DOWNLOAD,
+                                m3u8.url,
+                                CommonUtil.get_user_name(user_page_url) + '_' + m3u8.name
+                            )
                         self.mongo_client.get_collection(Constant.PARSED_M3U8_URL).insert_one({Constant.URL: m3u8.url})
 
-                        FFmpegUtil.ffmpeg_process_m3u8(
-                            m3u8.url,
-                            CommonUtil.get_user_name(user_page_url) + '_' + m3u8.name
-                        )
         print("已经滚动到底部了，开始获取关注列表...")
+
+    def download_m3u8_loop_single(self):
+        while True:
+            url, name = self.redis_client.get_one_from_list(Constant.VIDEO_URL_TO_DOWNLOAD)
+            print(f"下载器取到记录，url：{url}，name：{name}")
+            FFmpegUtil.ffmpeg_process_m3u8(url, name)
 
     def get_following(self, user_page_url):
         def get_user_urls():
@@ -113,18 +132,17 @@ class TwitterReider:
             get_user_urls()
         print("已经滚动到底部了，关注列表获取完毕...")
 
-    def url_dispatcher(self):
+    def chief_dispatcher(self):
         while self.user_urls_to_parse:
             url = self.user_urls_to_parse.pop()
             if url in self.user_urls_parsed:
                 continue
             self.raid_single_user(url)
+            self.get_following(url)
             self.user_urls_parsed.add(url)
 
 
 if __name__ == "__main__":
-    # init_url = 'https://twitter.com/stone62855987'
     init_url = 'https://twitter.com/zzh1329825121'
-    t = TwitterReider(init_url, high_res=True)
-    # t.raid_single_user(init_url)
-    t.get_following('https://twitter.com/zzh1329825121')
+    t = TwitterReider(init_url, high_res=True, do_download=True)
+    t.chief_dispatcher()
