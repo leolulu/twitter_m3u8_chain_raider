@@ -145,6 +145,6 @@ class TwitterReider:
 
 
 if __name__ == "__main__":
-    init_url = 'https://twitter.com/M0ch1xM0ch1'
+    init_url = 'https://twitter.com/renjianzhaoze'
     t = TwitterReider(init_url, high_res=True, do_download=True)
     t.chief_dispatcher()
