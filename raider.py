@@ -120,7 +120,7 @@ class TwitterReider:
             print("当前滚动高度：", new_height)
             if new_height == last_height:
                 reach_end_times += 1
-                if reach_end_times > 20:
+                if reach_end_times > 10:
                     break
             else:
                 last_height = new_height
