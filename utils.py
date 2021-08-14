@@ -92,11 +92,12 @@ class FFmpegUtil:
 
     @classmethod
     def ffmpeg_process_m3u8(cls, url, name):
+        f_stdout, f_stderr = open('./stdout.log', 'w'), open('./stderr.log', 'w')
         if not os.path.exists(FFmpegUtil.DOWNLOAD_FOLDER):
             os.mkdir(FFmpegUtil.DOWNLOAD_FOLDER)
         command = FFmpegUtil.COMMAND_TEMPLATE.format(url, os.path.join(FFmpegUtil.DOWNLOAD_FOLDER, f'{name}.mp4'))
         print("开始下载：", name, "\n指令为：", command)
-        exit_code = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        exit_code = subprocess.call(command, shell=True, stdout=f_stdout, stderr=f_stderr)
         print(f"下载完成，状态码[{exit_code}]:", name)
 
 
@@ -112,10 +113,6 @@ class CommonUtil:
         if url[-1] == '/':
             url = url[:-1]
         return url + '/following'
-
-
-class DriverUtil:
-    pass
 
 
 def load_config(config_path):

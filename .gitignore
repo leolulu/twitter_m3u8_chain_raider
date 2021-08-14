@@ -3,3 +3,4 @@ cookies.txt
 download/
 config.yaml
 .vscode
+*.log

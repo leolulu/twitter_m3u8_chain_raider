@@ -1,5 +1,6 @@
 import json
 import random
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
@@ -45,7 +46,7 @@ class TwitterReider:
         self.if_cookie_loaded = False
         # init downloader
         if self.do_download:
-            worker_num = 2
+            worker_num = 3
             executor = ThreadPoolExecutor(worker_num)
             for _ in range(worker_num):
                 executor.submit(self.download_m3u8_loop_single)
@@ -92,10 +93,13 @@ class TwitterReider:
         print("已经滚动到底部了，开始获取关注列表...")
 
     def download_m3u8_loop_single(self):
-        while True:
-            url, name = self.redis_client.get_one_from_list(Constant.VIDEO_URL_TO_DOWNLOAD)
-            print(f"下载器取到记录，url：{url}，name：{name}")
-            FFmpegUtil.ffmpeg_process_m3u8(url, name)
+        try:
+            while True:
+                url, name = self.redis_client.get_one_from_list(Constant.VIDEO_URL_TO_DOWNLOAD)
+                print(f"下载器取到记录，url：{url}，name：{name}")
+                FFmpegUtil.ffmpeg_process_m3u8(url, name)
+        except:
+            print(traceback.format_exc())
 
     def scroll_wrapper(self, func, *args, **kwargs):
         SCROLL_PAUSE_TIME = 2.0
@@ -141,6 +145,6 @@ class TwitterReider:
 
 
 if __name__ == "__main__":
-    init_url = 'https://twitter.com/zzh1329825121'
+    init_url = 'https://twitter.com/M0ch1xM0ch1'
     t = TwitterReider(init_url, high_res=True, do_download=True)
     t.chief_dispatcher()
