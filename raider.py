@@ -64,25 +64,7 @@ class TwitterReider:
             self.if_cookie_loaded = True
 
     def raid_single_user(self, user_page_url):
-        self.driver.requests.clear()
-        parsed_url_set = set()
-        self.driver.get(user_page_url)
-        self.load_cookie()
-        sleep(5)
-
-        SCROLL_PAUSE_TIME = 1.0
-        get_scrollTop_command = "return document.documentElement.scrollTop"
-        last_height = self.driver.execute_script(get_scrollTop_command)
-        height = 0
-        while True:
-            height += 750
-            self.driver.execute_script(f"window.scrollTo(0, {height})")
-            sleep(SCROLL_PAUSE_TIME)
-            new_height = self.driver.execute_script(get_scrollTop_command)
-            print("当前滚动高度：", new_height)
-            if new_height == last_height:
-                break
-            last_height = new_height
+        def get_m3u8_url(parsed_url_set, user_page_url):
             for request in self.driver.requests:
                 m3u8 = M3u8Util(request.url)
                 if (
@@ -100,6 +82,13 @@ class TwitterReider:
                             )
                         self.mongo_client.get_collection(Constant.PARSED_M3U8_URL).insert_one({Constant.URL: m3u8.url})
 
+        self.driver.requests.clear()
+        parsed_url_set = set()
+        self.driver.get(user_page_url)
+        self.load_cookie()
+        sleep(5)
+
+        self.scroll_wrapper(get_m3u8_url, parsed_url_set, user_page_url)
         print("已经滚动到底部了，开始获取关注列表...")
 
     def download_m3u8_loop_single(self):
@@ -107,6 +96,26 @@ class TwitterReider:
             url, name = self.redis_client.get_one_from_list(Constant.VIDEO_URL_TO_DOWNLOAD)
             print(f"下载器取到记录，url：{url}，name：{name}")
             FFmpegUtil.ffmpeg_process_m3u8(url, name)
+
+    def scroll_wrapper(self, func, *args, **kwargs):
+        SCROLL_PAUSE_TIME = 2.0
+        get_scrollTop_command = "return document.documentElement.scrollTop"
+        last_height = self.driver.execute_script(get_scrollTop_command)
+        height = 0
+        reach_end_times = 0
+        while True:
+            height += 750
+            self.driver.execute_script(f"window.scrollTo(0, {height})")
+            sleep(SCROLL_PAUSE_TIME)
+            new_height = self.driver.execute_script(get_scrollTop_command)
+            print("当前滚动高度：", new_height)
+            if new_height == last_height:
+                reach_end_times += 1
+                if reach_end_times > 20:
+                    break
+            else:
+                last_height = new_height
+                func(*args, **kwargs)
 
     def get_following(self, user_page_url):
         def get_user_urls():
@@ -117,25 +126,12 @@ class TwitterReider:
         self.load_cookie()
         get_user_urls()
 
-        SCROLL_PAUSE_TIME = 1.0
-        get_scrollTop_command = "return document.documentElement.scrollTop"
-        last_height = self.driver.execute_script(get_scrollTop_command)
-        height = 0
-        while True:
-            height += 750
-            self.driver.execute_script(f"window.scrollTo(0, {height})")
-            sleep(SCROLL_PAUSE_TIME)
-            new_height = self.driver.execute_script(get_scrollTop_command)
-            print("当前滚动高度：", new_height)
-            if new_height == last_height:
-                break
-            last_height = new_height
-            get_user_urls()
+        self.scroll_wrapper(get_user_urls)
         print("已经滚动到底部了，关注列表获取完毕...")
 
     def chief_dispatcher(self):
         while self.user_urls_to_parse:
-            url = random.sample(self.user_urls_to_parse,1)[0]
+            url = random.sample(self.user_urls_to_parse, 1)[0]
             self.user_urls_to_parse.remove(url)
             if url in self.user_urls_parsed:
                 continue

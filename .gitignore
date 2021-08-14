@@ -2,3 +2,4 @@ cookies.txt
 *__pycache__*
 download/
 config.yaml
+.vscode
