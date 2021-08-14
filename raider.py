@@ -38,7 +38,12 @@ class TwitterReider:
                 'no_proxy': 'localhost,127.0.0.1'
             }
         }
-        self.driver = Chrome(seleniumwire_options=options)
+        oc = ChromeOptions()
+        oc.add_argument('--log-level=3')
+        oc.add_argument('--headless')
+        oc.add_argument('--disable-gpu')
+        self.driver = Chrome(seleniumwire_options=options, options=oc)
+        self.driver.set_page_load_timeout(60)
         print('selenium driver已初始化...')
         # init variables
         self.user_urls_to_parse = set([self.init_url])
