@@ -92,9 +92,7 @@ class TwitterReider:
         parsed_url_set = set()
         self.driver.get(user_page_url)
         self.load_cookie()
-        sleep(1)
-        print(f"开始解析用户主页：{self.driver.title}")
-        sleep(2)
+        self.print_title("开始解析用户主页")
 
         self.scroll_wrapper(get_m3u8_url, parsed_url_set, user_page_url)
         print("已经滚动到底部了，开始获取关注列表...")
@@ -107,6 +105,15 @@ class TwitterReider:
                 FFmpegUtil.ffmpeg_process_m3u8(url, name)
         except:
             print(traceback.format_exc())
+
+    def print_title(self, prompt):
+        title = None
+        attempts = 30
+        while (not title) and attempts > 0:
+            title = self.driver.title
+            attempts -= 0
+            sleep(1)
+        print(f"{prompt}：{title}")
 
     def scroll_wrapper(self, func, *args, **kwargs):
         SCROLL_PAUSE_TIME = 1.0
@@ -135,8 +142,7 @@ class TwitterReider:
 
         self.driver.get(CommonUtil.get_following_url(user_page_url))
         self.load_cookie()
-        sleep(2)
-        print(f"开始解析用户好友：{self.driver.title}")
+        self.print_title("开始解析用户好友")
         get_user_urls()
 
         self.scroll_wrapper(get_user_urls)
