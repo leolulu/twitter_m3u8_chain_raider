@@ -91,9 +91,10 @@ class TwitterReider:
         self.driver.requests.clear()
         parsed_url_set = set()
         self.driver.get(user_page_url)
-        print(f"开始解析用户主页：{self.driver.title}")
         self.load_cookie()
-        sleep(5)
+        sleep(1)
+        print(f"开始解析用户主页：{self.driver.title}")
+        sleep(2)
 
         self.scroll_wrapper(get_m3u8_url, parsed_url_set, user_page_url)
         print("已经滚动到底部了，开始获取关注列表...")
@@ -133,8 +134,9 @@ class TwitterReider:
                 self.user_urls_to_parse.add(a_obj.get_attribute('href'))
 
         self.driver.get(CommonUtil.get_following_url(user_page_url))
-        print(f"开始解析用户好友：{self.driver.title}")
         self.load_cookie()
+        sleep(2)
+        print(f"开始解析用户好友：{self.driver.title}")
         get_user_urls()
 
         self.scroll_wrapper(get_user_urls)
