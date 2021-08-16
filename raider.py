@@ -91,6 +91,7 @@ class TwitterReider:
         self.driver.requests.clear()
         parsed_url_set = set()
         self.driver.get(user_page_url)
+        print(f"开始解析用户主页：{self.driver.title}")
         self.load_cookie()
         sleep(5)
 
@@ -132,6 +133,7 @@ class TwitterReider:
                 self.user_urls_to_parse.add(a_obj.get_attribute('href'))
 
         self.driver.get(CommonUtil.get_following_url(user_page_url))
+        print(f"开始解析用户好友：{self.driver.title}")
         self.load_cookie()
         get_user_urls()
 
