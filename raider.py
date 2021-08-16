@@ -144,13 +144,16 @@ class TwitterReider:
 
     def chief_dispatcher(self):
         while self.user_urls_to_parse:
-            url = random.sample(self.user_urls_to_parse, 1)[0]
-            self.user_urls_to_parse.remove(url)
-            if url in self.user_urls_parsed:
-                continue
-            self.raid_single_user(url)
-            self.get_following(url)
-            self.user_urls_parsed.add(url)
+            try:
+                url = random.sample(self.user_urls_to_parse, 1)[0]
+                self.user_urls_to_parse.remove(url)
+                if url in self.user_urls_parsed:
+                    continue
+                self.raid_single_user(url)
+                self.get_following(url)
+                self.user_urls_parsed.add(url)
+            except:
+                print(f"浏览器好像挂掉了，重启：\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
