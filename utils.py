@@ -96,9 +96,9 @@ class FFmpegUtil:
         if not os.path.exists(FFmpegUtil.DOWNLOAD_FOLDER):
             os.mkdir(FFmpegUtil.DOWNLOAD_FOLDER)
         command = FFmpegUtil.COMMAND_TEMPLATE.format(url, os.path.join(FFmpegUtil.DOWNLOAD_FOLDER, f'{name}.mp4'))
-        print("开始下载：", name, "\n指令为：", command)
+        print(f"\033[0;33;40m开始下载：{name}\n指令为：{command}\033[0m")
         exit_code = subprocess.call(command, shell=True, stdout=f_stdout, stderr=f_stderr)
-        print(f"下载完成，状态码[{exit_code}]:", name)
+        print(f"\033[0;33;40m下载完成，状态码[{exit_code}]: {name}\033[0m")
 
 
 class CommonUtil:

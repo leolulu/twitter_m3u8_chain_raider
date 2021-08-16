@@ -2,6 +2,7 @@ import json
 import random
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from time import sleep
 
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
@@ -40,10 +41,9 @@ class TwitterReider:
         }
         oc = ChromeOptions()
         oc.add_argument('--log-level=3')
-        oc.add_argument('--headless')
+        # oc.add_argument('--headless')
         oc.add_argument('--disable-gpu')
         self.driver = Chrome(seleniumwire_options=options, options=oc)
-        self.driver.set_page_load_timeout(60)
         print('selenium driver已初始化...')
         # init variables
         self.user_urls_to_parse = set([self.init_url])
@@ -101,13 +101,13 @@ class TwitterReider:
         try:
             while True:
                 url, name = self.redis_client.get_one_from_list(Constant.VIDEO_URL_TO_DOWNLOAD)
-                print(f"下载器取到记录，url：{url}，name：{name}")
+                print(f"\033[0;33;40m下载器取到记录，url：{url}，name：{name}\033[0m")
                 FFmpegUtil.ffmpeg_process_m3u8(url, name)
         except:
             print(traceback.format_exc())
 
     def scroll_wrapper(self, func, *args, **kwargs):
-        SCROLL_PAUSE_TIME = 2.0
+        SCROLL_PAUSE_TIME = 1.0
         get_scrollTop_command = "return document.documentElement.scrollTop"
         last_height = self.driver.execute_script(get_scrollTop_command)
         height = 0
@@ -117,7 +117,7 @@ class TwitterReider:
             self.driver.execute_script(f"window.scrollTo(0, {height})")
             sleep(SCROLL_PAUSE_TIME)
             new_height = self.driver.execute_script(get_scrollTop_command)
-            print("当前滚动高度：", new_height)
+            print(f"[{datetime.now().strftime('%F %X')}]当前滚动高度：", new_height)
             if new_height == last_height:
                 reach_end_times += 1
                 if reach_end_times > 10:
@@ -150,6 +150,6 @@ class TwitterReider:
 
 
 if __name__ == "__main__":
-    init_url = 'https://twitter.com/renjianzhaoze'
+    init_url = 'https://twitter.com/dcl0921'
     t = TwitterReider(init_url, high_res=True, do_download=True)
     t.chief_dispatcher()
