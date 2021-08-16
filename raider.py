@@ -119,11 +119,9 @@ class TwitterReider:
         SCROLL_PAUSE_TIME = 1.0
         get_scrollTop_command = "return document.documentElement.scrollTop"
         last_height = self.driver.execute_script(get_scrollTop_command)
-        height = 0
         reach_end_times = 0
         while True:
-            height += 750
-            self.driver.execute_script(f"window.scrollTo(0, {height})")
+            self.driver.execute_script(f"window.scrollTo(0, {last_height+750})")
             sleep(SCROLL_PAUSE_TIME)
             new_height = self.driver.execute_script(get_scrollTop_command)
             print(f"[{datetime.now().strftime('%F %X')}]当前滚动高度：", new_height)
