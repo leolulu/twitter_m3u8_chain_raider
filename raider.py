@@ -4,6 +4,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
+from typing_extensions import runtime
 
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
 
@@ -19,19 +20,16 @@ class TwitterReider:
         self.prepare()
 
     def __del__(self):
-        self.driver.close()
-        self.driver.quit()
+        self.destroy_web_driver()
 
-    def prepare(self):
-        # load config
-        self.conf = load_config("config.yaml")
-        print('配置已读取...')
-        # init utils
-        self.mongo_client = MongoUtil(self.conf['mongo']['db_addr'])
-        print('mongo已连接...')
-        self.redis_client = RedisUtil(self.conf['redis']['host'], self.conf['redis']['password'])
-        print('redis已连接...')
-        # init driver
+    def destroy_web_driver(self):
+        try:
+            self.driver.close()
+            self.driver.quit()
+        except:
+            print(f"销毁web dervier失败：{traceback.format_exc()}")
+
+    def init_web_driver(self):
         options = {
             'proxy': {
                 'http': 'socks5://127.0.0.1:10808',
@@ -45,6 +43,18 @@ class TwitterReider:
         oc.add_argument('--disable-gpu')
         self.driver = Chrome(seleniumwire_options=options, options=oc)
         print('selenium driver已初始化...')
+
+    def prepare(self):
+        # load config
+        self.conf = load_config("config.yaml")
+        print('配置已读取...')
+        # init utils
+        self.mongo_client = MongoUtil(self.conf['mongo']['db_addr'])
+        print('mongo已连接...')
+        self.redis_client = RedisUtil(self.conf['redis']['host'], self.conf['redis']['password'])
+        print('redis已连接...')
+        # init driver
+        self.init_web_driver()
         # init variables
         self.user_urls_to_parse = set([self.init_url])
         self.user_urls_parsed = set()
@@ -115,19 +125,24 @@ class TwitterReider:
             sleep(1)
         print(f"{prompt}：{title}")
 
+    def driver_execute_script(self,script):
+        window_focus_command = "window.focus()"
+        self.driver.execute_script(window_focus_command)
+        return self.driver.execute_script(script)
+
     def scroll_wrapper(self, func, *args, **kwargs):
-        SCROLL_PAUSE_TIME = 1.0
+        SCROLL_PAUSE_TIME = 0.3
         get_scrollTop_command = "return document.documentElement.scrollTop"
-        last_height = self.driver.execute_script(get_scrollTop_command)
+        last_height = self.driver_execute_script(get_scrollTop_command)
         reach_end_times = 0
         while True:
-            self.driver.execute_script(f"window.scrollTo(0, {last_height+750})")
+            self.driver_execute_script(f"window.scrollTo(0, {last_height+750})")
             sleep(SCROLL_PAUSE_TIME)
-            new_height = self.driver.execute_script(get_scrollTop_command)
+            new_height = self.driver_execute_script(get_scrollTop_command)
             print(f"[{datetime.now().strftime('%F %X')}]当前滚动高度：", new_height)
             if new_height == last_height:
                 reach_end_times += 1
-                if reach_end_times > 10:
+                if reach_end_times > 30:
                     break
             else:
                 last_height = new_height
@@ -147,6 +162,7 @@ class TwitterReider:
         print("已经滚动到底部了，关注列表获取完毕...")
 
     def chief_dispatcher(self):
+        runtime = 0
         while self.user_urls_to_parse:
             try:
                 url = random.sample(self.user_urls_to_parse, 1)[0]
@@ -156,8 +172,15 @@ class TwitterReider:
                 self.raid_single_user(url)
                 self.get_following(url)
                 self.user_urls_parsed.add(url)
+
+                runtime += 1
+                if runtime > 4:
+                    raise UserWarning("常规重启web deriver...")
             except:
                 print(f"浏览器好像挂掉了，重启：\n{traceback.format_exc()}")
+                self.destroy_web_driver()
+                runtime = 0
+                self.init_web_driver()
 
 
 if __name__ == "__main__":
