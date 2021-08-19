@@ -61,7 +61,7 @@ class TwitterReider:
         self.if_cookie_loaded = False
         # init downloader
         if self.do_download:
-            worker_num = 3
+            worker_num = 2
             executor = ThreadPoolExecutor(worker_num)
             for _ in range(worker_num):
                 executor.submit(self.download_m3u8_loop_single)
@@ -142,7 +142,7 @@ class TwitterReider:
             print(f"[{datetime.now().strftime('%F %X')}]当前滚动高度：", new_height)
             if new_height == last_height:
                 reach_end_times += 1
-                if reach_end_times > 30:
+                if reach_end_times > 20:
                     break
             else:
                 last_height = new_height
@@ -180,10 +180,11 @@ class TwitterReider:
                 print(f"浏览器好像挂掉了，重启：\n{traceback.format_exc()}")
                 self.destroy_web_driver()
                 runtime = 0
+                self.if_cookie_loaded = False
                 self.init_web_driver()
 
 
 if __name__ == "__main__":
-    init_url = 'https://twitter.com/dcl0921'
+    init_url = 'https://twitter.com/mywife8888'
     t = TwitterReider(init_url, high_res=True, do_download=True)
     t.chief_dispatcher()
