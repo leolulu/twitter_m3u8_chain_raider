@@ -66,6 +66,7 @@ class UrlLayeredDistributer:
         else:
             visit_num = query_result[Constant.VISIT]
             self.url_stack[visit_num].add(url)
+        self.printout()
 
     def withdraw(self) -> str:
         url = None
@@ -78,10 +79,12 @@ class UrlLayeredDistributer:
             print("不可能的情况出现了！！！，取url竟然取到了None！！！")
             exit()
         else:
+            self.printout()
             return url
 
     def settle(self, url):
         self.col.update_one({Constant.URL: url}, {'$inc': {Constant.VISIT: 1}}, upsert=True)
+        self.printout()
 
     @property
     def nonempty(self) -> bool:
@@ -91,6 +94,15 @@ class UrlLayeredDistributer:
                 nonempty = True
                 break
         return nonempty
+
+    def printout(self):
+        msg = 'url_stack: '
+        for visit_num in sorted(self.url_stack):
+            url_set = self.url_stack[visit_num]
+            if url_set:
+                msg += f"[{visit_num}]*{len(url_set)}, "
+        print(msg)
+        
 
 
 class RedisUtil:

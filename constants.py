@@ -7,4 +7,4 @@ class Constant:
     VIDEO_URL_TO_DOWNLOAD = 'video_urls_to_download'
     DELIMITER = '##$$@@'
     TABOOS_URL = ['hk', 'hongkong', 'cat', 'kitty', 'freedom', 'free']
-    FETISHES_TITLE = ['小', '骚', '女', '约', '奶', '成都']
+    FETISHES_TITLE = ['小', '骚', '女', '约', '奶', '成都', '水']
