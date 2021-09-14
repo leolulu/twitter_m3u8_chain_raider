@@ -1,12 +1,16 @@
 import os
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
+from typing import Dict, Optional, Set
 from urllib.parse import urlparse
 
 import pymongo
 import redis
+from pymongo.collection import Collection
 from retrying import retry
 from ruamel.yaml import YAML
+
+from constants import Constant
 
 
 class MongoUtil:
@@ -28,7 +32,7 @@ class MongoUtil:
 
 
 class MongoColUtil:
-    def __init__(self, col):
+    def __init__(self, col: Collection):
         self.col = col
 
     @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
@@ -38,6 +42,55 @@ class MongoColUtil:
     @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
     def insert_one(self, *args, **kwargs):
         return self.col.insert_one(*args, **kwargs)
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
+    def update_one(self, *args, **kwargs):
+        return self.col.update_one(*args, **kwargs)
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
+    def find_one(self, *args, **kwargs):
+        return self.col.find_one(*args, **kwargs)
+
+
+class UrlLayeredDistributer:
+    def __init__(self, client: MongoUtil, init_url: Optional[str] = None) -> None:
+        self.url_stack: Dict[int, Set[str]] = defaultdict(set)
+        self.col = client.get_collection(Constant.USER_ACCESS_RECORD)
+        if init_url:
+            self.url_stack[0].add(init_url)
+
+    def deposit(self,  url):
+        query_result = self.col.find_one({Constant.URL: url})
+        if query_result is None:
+            self.url_stack[0].add(url)
+        else:
+            visit_num = query_result[Constant.VISIT]
+            self.url_stack[visit_num].add(url)
+
+    def withdraw(self) -> str:
+        url = None
+        for visit_num in sorted(self.url_stack):
+            url_set = self.url_stack[visit_num]
+            if url_set:
+                url = url_set.pop()
+                break
+        if url is None:
+            print("不可能的情况出现了！！！，取url竟然取到了None！！！")
+            exit()
+        else:
+            return url
+
+    def settle(self, url):
+        self.col.update_one({Constant.URL: url}, {'$inc': {Constant.VISIT: 1}}, upsert=True)
+
+    @property
+    def nonempty(self) -> bool:
+        nonempty = False
+        for visit_num in self.url_stack:
+            if self.url_stack[visit_num]:
+                nonempty = True
+                break
+        return nonempty
 
 
 class RedisUtil:

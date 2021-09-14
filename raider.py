@@ -2,15 +2,13 @@ import json
 import random
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from time import sleep
 
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
-from typing_extensions import runtime
 
 from constants import Constant
 from exceptions import NoFetishError, RestartBrowserWarning
-from utils import CommonUtil, FFmpegUtil, M3u8Util, MongoUtil, RedisUtil, load_config
+from utils import CommonUtil, FFmpegUtil, M3u8Util, MongoUtil, RedisUtil, UrlLayeredDistributer, load_config
 
 
 class TwitterReider:
@@ -59,8 +57,9 @@ class TwitterReider:
         print('redis已连接...')
         # init driver
         self.init_web_driver()
+        # init url distributer
+        self.user_urls_to_parse = UrlLayeredDistributer(self.mongo_client, self.init_url)
         # init variables
-        self.user_urls_to_parse = set([self.init_url])
         self.user_urls_parsed = set()
         self.if_cookie_loaded = False
         # init downloader
@@ -165,7 +164,7 @@ class TwitterReider:
     def get_following(self, user_page_url):
         def get_user_urls():
             for a_obj in self.driver.find_elements_by_xpath("//section[@role='region']//div[@role='button']/div/div[1]//a[@role='link']"):
-                self.user_urls_to_parse.add(a_obj.get_attribute('href'))
+                self.user_urls_to_parse.deposit(a_obj.get_attribute('href'))
 
         self.driver.get(CommonUtil.get_following_url(user_page_url))
         self.load_cookie()
@@ -189,15 +188,15 @@ class TwitterReider:
     def chief_dispatcher(self):
         runtime = 0
         url = None
-        while self.user_urls_to_parse:
+        while self.user_urls_to_parse.nonempty:
             try:
-                url = random.sample(self.user_urls_to_parse, 1)[0]
-                self.user_urls_to_parse.remove(url)
+                url = self.user_urls_to_parse.withdraw()
                 if self.skip_url_check(url):
                     continue
                 self.raid_single_user(url)
                 self.get_following(url)
                 self.user_urls_parsed.add(url)
+                self.user_urls_to_parse.settle(url)
 
                 runtime += 1
                 if runtime > 4:
@@ -207,7 +206,7 @@ class TwitterReider:
                     self.user_urls_parsed.add(url)
             except Exception as e:
                 if isinstance(e, RestartBrowserWarning):
-                    print(f"运行了一定时辰了，重启一下...")
+                    print(f"时辰到了，重启一下...")
                 else:
                     print(f"浏览器好像挂掉了，重启：\n{traceback.format_exc()}")
                 self.destroy_web_driver()
