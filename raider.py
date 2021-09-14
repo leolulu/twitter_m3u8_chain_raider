@@ -4,11 +4,12 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
-from typing_extensions import runtime
 
 from seleniumwire.undetected_chromedriver.v2 import Chrome, ChromeOptions
+from typing_extensions import runtime
 
 from constants import Constant
+from exceptions import NoFetishError, RestartBrowserWarning
 from utils import CommonUtil, FFmpegUtil, M3u8Util, MongoUtil, RedisUtil, load_config
 
 
@@ -45,6 +46,9 @@ class TwitterReider:
         print('selenium driver已初始化...')
 
     def prepare(self):
+        # manual switch
+        self.use_taboos_url = True
+        self.use_fetish_title = True
         # load config
         self.conf = load_config("config.yaml")
         print('配置已读取...')
@@ -125,7 +129,17 @@ class TwitterReider:
             sleep(1)
         print(f"{prompt}：{title}")
 
-    def driver_execute_script(self,script):
+        if self.use_fetish_title and title:
+            has_fetish = False
+            for fetish in Constant.FETISHES_TITLE:
+                if fetish in title:
+                    has_fetish = True
+                    break
+            if not has_fetish:
+                print(f"标题不含有fetish...")
+                raise NoFetishError()
+
+    def driver_execute_script(self, script):
         window_focus_command = "window.focus()"
         self.driver.execute_script(window_focus_command)
         return self.driver.execute_script(script)
@@ -139,7 +153,7 @@ class TwitterReider:
             self.driver_execute_script(f"window.scrollTo(0, {last_height+750})")
             sleep(SCROLL_PAUSE_TIME)
             new_height = self.driver_execute_script(get_scrollTop_command)
-            print(f"[{datetime.now().strftime('%F %X')}]当前滚动高度：", new_height)
+            # print(f"[{datetime.now().strftime('%F %X')}]当前滚动高度：", new_height)    //TODO 测试用，展示屏蔽，测试完恢复
             if new_height == last_height:
                 reach_end_times += 1
                 if reach_end_times > 20:
@@ -161,13 +175,25 @@ class TwitterReider:
         self.scroll_wrapper(get_user_urls)
         print("已经滚动到底部了，关注列表获取完毕...")
 
+    def skip_url_check(self, url: str) -> bool:
+        if not self.use_taboos_url:
+            return True
+        url = url.lower()
+        if url in self.user_urls_parsed:
+            return True
+        for taboo in Constant.TABOOS_URL:
+            if taboo in url:
+                return True
+        return False
+
     def chief_dispatcher(self):
         runtime = 0
+        url = None
         while self.user_urls_to_parse:
             try:
                 url = random.sample(self.user_urls_to_parse, 1)[0]
                 self.user_urls_to_parse.remove(url)
-                if url in self.user_urls_parsed:
+                if self.skip_url_check(url):
                     continue
                 self.raid_single_user(url)
                 self.get_following(url)
@@ -175,9 +201,15 @@ class TwitterReider:
 
                 runtime += 1
                 if runtime > 4:
-                    raise UserWarning("常规重启web deriver...")
-            except:
-                print(f"浏览器好像挂掉了，重启：\n{traceback.format_exc()}")
+                    raise RestartBrowserWarning("常规重启web deriver...")
+            except NoFetishError:
+                if url:
+                    self.user_urls_parsed.add(url)
+            except Exception as e:
+                if isinstance(e, RestartBrowserWarning):
+                    print(f"运行了一定时辰了，重启一下...")
+                else:
+                    print(f"浏览器好像挂掉了，重启：\n{traceback.format_exc()}")
                 self.destroy_web_driver()
                 runtime = 0
                 self.if_cookie_loaded = False
