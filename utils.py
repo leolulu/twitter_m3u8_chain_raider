@@ -51,30 +51,35 @@ class MongoColUtil:
     def find_one(self, *args, **kwargs):
         return self.col.find_one(*args, **kwargs)
 
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=60000)
+    def delete_one(self, *args, **kwargs):
+        return self.col.delete_one(*args, **kwargs)
+
 
 class UrlLayeredDistributer:
     def __init__(self, client: MongoUtil, init_url: Optional[str] = None) -> None:
-        self.url_stack: Dict[int, Set[str]] = defaultdict(set)
-        self.col = client.get_collection(Constant.USER_ACCESS_RECORD)
+        self.col_usr_acc_rec = client.get_collection(Constant.USER_ACCESS_RECORD)
+        self.mongo_util = client
         if init_url:
-            self.url_stack[0].add(init_url)
+            self.unique_insert_one_url(0, init_url)
 
     def deposit(self,  url):
-        query_result = self.col.find_one({Constant.URL: url})
+        query_result = self.col_usr_acc_rec.find_one({Constant.URL: url})
         if query_result is None:
-            self.url_stack[0].add(url)
+            self.unique_insert_one_url(0, url)
         else:
             visit_num = query_result[Constant.VISIT]
-            self.url_stack[visit_num].add(url)
-        self.printout()
+            self.unique_insert_one_url(visit_num, url)
 
     def withdraw(self) -> str:
         url = None
-        for visit_num in sorted(self.url_stack):
-            url_set = self.url_stack[visit_num]
-            if url_set:
-                url = url_set.pop()
+        for db_name in sorted([i for i in self.mongo_util.client.list_database_names() if i.startswith(Constant.DB_NAME_PREFIX)]):
+            col = self.mongo_util.get_collection(db_name)
+            if col.count_documents({}) > 0:
+                url = col.find_one()[Constant.URL]
+                col.delete_one({Constant.URL: url})
                 break
+
         if url is None:
             print("不可能的情况出现了！！！，取url竟然取到了None！！！")
             exit()
@@ -83,26 +88,38 @@ class UrlLayeredDistributer:
             return url
 
     def settle(self, url):
-        self.col.update_one({Constant.URL: url}, {'$inc': {Constant.VISIT: 1}}, upsert=True)
+        self.col_usr_acc_rec.update_one({Constant.URL: url}, {'$inc': {Constant.VISIT: 1}}, upsert=True)
         self.printout()
+
+    def get_db_name(self, visit_num: int) -> str:
+        return f'{Constant.DB_NAME_PREFIX}-{visit_num}'
+
+    def unique_insert_one_url(self, visit_num: int, url):
+        self.mongo_util.get_collection(
+            self.get_db_name(visit_num)
+        ).update_one(
+            {Constant.URL: url},
+            {'$set': {Constant.URL: url}},
+            True
+        )
 
     @property
     def nonempty(self) -> bool:
         nonempty = False
-        for visit_num in self.url_stack:
-            if self.url_stack[visit_num]:
+        for db_name in [i for i in self.mongo_util.client.list_database_names() if i.startswith(Constant.DB_NAME_PREFIX)]:
+            if self.mongo_util.get_collection(db_name).count_documents({}) > 0:
                 nonempty = True
                 break
         return nonempty
 
     def printout(self):
         msg = 'url_stack: '
-        for visit_num in sorted(self.url_stack):
-            url_set = self.url_stack[visit_num]
-            if url_set:
-                msg += f"[{visit_num}]*{len(url_set)}, "
+        for db_name in sorted([i for i in self.mongo_util.client.list_database_names() if i.startswith(Constant.DB_NAME_PREFIX)]):
+            num = self.mongo_util.get_collection(db_name).count_documents({})
+            db_name = db_name.split('-')[-1]
+            if num > 0:
+                msg += f"[{db_name}]*{num}, "
         print(msg)
-        
 
 
 class RedisUtil:

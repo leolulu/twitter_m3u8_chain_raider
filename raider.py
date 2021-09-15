@@ -186,11 +186,13 @@ class TwitterReider:
         return False
 
     def chief_dispatcher(self):
+        print("所有初始化完毕，开始调度...")
         runtime = 0
         url = None
         while self.user_urls_to_parse.nonempty:
             try:
                 url = self.user_urls_to_parse.withdraw()
+                print(f"取到url: {url}")
                 if self.skip_url_check(url):
                     continue
                 self.raid_single_user(url)
@@ -213,9 +215,15 @@ class TwitterReider:
                 runtime = 0
                 self.if_cookie_loaded = False
                 self.init_web_driver()
+        print('所有URL已经下载完咯~~~')
 
 
 if __name__ == "__main__":
-    init_url = 'https://twitter.com/zzh1329825121'
-    t = TwitterReider(init_url, high_res=True, do_download=True)
-    t.chief_dispatcher()
+    def main():
+        init_url = 'https://twitter.com/zzh1329825121'
+        t = TwitterReider(init_url, high_res=True, do_download=True)
+        t.chief_dispatcher()
+    with ThreadPoolExecutor(3) as exe:
+        for _ in range(3):
+            exe.submit(main)
+
