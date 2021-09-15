@@ -57,6 +57,7 @@ class TwitterReider:
         print('redis已连接...')
         # init driver
         self.init_web_driver()
+        print('web_driver已初始化...')
         # init url distributer
         self.user_urls_to_parse = UrlLayeredDistributer(self.mongo_client, self.init_url)
         # init variables
@@ -213,6 +214,7 @@ class TwitterReider:
                 runtime = 0
                 self.if_cookie_loaded = False
                 self.init_web_driver()
+        print('所有URL已经下载完咯~~~')
 
 
 if __name__ == "__main__":
